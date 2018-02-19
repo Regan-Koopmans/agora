@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: SwirldsPlatform:platform:0.0.1-SNAPSHOT">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/SwirldsPlatform/platform/0.0.1-SNAPSHOT/platform-0.0.1-20170915.114210-1.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/SwirldsPlatform/platform/0.0.1-SNAPSHOT/platform-0.0.1-20170915.114210-1-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/SwirldsPlatform/platform/0.0.1-SNAPSHOT/platform-0.0.1-20170915.114210-1-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
