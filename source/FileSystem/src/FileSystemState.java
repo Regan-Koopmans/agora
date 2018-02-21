@@ -1,31 +1,14 @@
 
-/*
- * This file is public domain.
- *
- * SWIRLDS MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF 
- * THE SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED 
- * TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
- * PARTICULAR PURPOSE, OR NON-INFRINGEMENT. SWIRLDS SHALL NOT BE LIABLE FOR 
- * ANY DAMAGES SUFFERED AS A RESULT OF USING, MODIFYING OR 
- * DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
- */
+
+import com.swirlds.platform.*;
+import org.apache.commons.lang3.SerializationUtils;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
-import com.swirlds.platform.Address;
-import com.swirlds.platform.AddressBook;
-import com.swirlds.platform.FCDataInputStream;
-import com.swirlds.platform.FCDataOutputStream;
-import com.swirlds.platform.FastCopyable;
-import com.swirlds.platform.Platform;
-import com.swirlds.platform.SwirldState;
-import com.swirlds.platform.Utilities;
 
 /**
  * This holds the current state of the swirld. For this simple "hello swirld" code, each transaction is just
@@ -33,83 +16,100 @@ import com.swirlds.platform.Utilities;
  * order that they were handled.
  */
 public class FileSystemState implements SwirldState {
-	/**
-	 * The shared state is just a list of the strings in all transactions, listed in the order received
-	 * here, which will eventually be the consensus order of the community.
-	 */
-	private List<String> strings = Collections
-			.synchronizedList(new ArrayList<String>());
+
+    /**
+     * The shared state is just a list of the strings in all transactions, listed in the order received
+     * here, which will eventually be the consensus order of the community.
+     */
+    private List<FileSystemPage> pages = Collections
+            .synchronizedList(new ArrayList<FileSystemPage>());
 
 
-	/** names and addresses of all members */
-	private AddressBook addressBook;
+    /**
+     * names and addresses of all members
+     */
+    private AddressBook addressBook;
 
-	/** @return all the strings received so far from the network */
-	public synchronized List<String> getStrings() {
-		return strings;
-	}
+    /**
+     * @return all the pages received so far from the network
+     */
+    public synchronized List<FileSystemPage> getPages() {
+        return pages;
+    }
 
-	/** @return all the strings received so far from the network, concatenated into one */
-	public synchronized String getReceived() {
-		return strings.toString();
-	}
+    /**
+     * @return all the pages received so far from the network, concatenated into one
+     */
+    synchronized String getReceived() {
 
-	/** @return the same as getReceived, so it returns the entire shared state as a single string */
-	public String toString() {
-		return strings.toString();
-	}
+        return pages.toString();
+    }
 
-	@Override
-	public synchronized AddressBook getAddressBookCopy() {
-		return addressBook.copy();
-	}
+    /**
+     * @return the same as getReceived, so it returns the entire shared state as a single string
+     */
+    public String toString() {
+        return pages.toString();
+    }
 
-	@Override
-	public synchronized FastCopyable copy() {
-		FileSystemState copy = new FileSystemState();
-		copy.copyFrom(this);
-		return copy;
-	}
+    @Override
+    public synchronized AddressBook getAddressBookCopy() {
+        return addressBook.copy();
+    }
 
-	@Override
-	public void copyTo(FCDataOutputStream outStream) {
-		try {
-			Utilities.writeStringArray(outStream,
-					strings.toArray(new String[0]));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
+    @Override
+    public synchronized FastCopyable copy() {
+        FileSystemState copy = new FileSystemState();
+        copy.copyFrom(this);
+        return copy;
+    }
 
-	@Override
-	public void copyFrom(FCDataInputStream inStream) {
-		try {
-			strings = new ArrayList<String>(
-					Arrays.asList(Utilities.readStringArray(inStream)));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
+    @Override
+    public void copyTo(FCDataOutputStream outStream) {
+        try {
+            Utilities.writeByteArray(outStream,
+                    SerializationUtils.serialize(pages.toArray()));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
-	@Override
-	public synchronized void copyFrom(SwirldState old) {
-		strings = Collections.synchronizedList(
-				new ArrayList<String>(((FileSystemState) old).strings));
-		addressBook = ((FileSystemState) old).addressBook.copy();
-	}
+    @Override
+    public void copyFrom(FCDataInputStream inStream) {
+//        try {
+//            pages = new ArrayList<FileSystemPage>(
+//                    Arrays.asList(Utilities.readStringArray(inStream)));
+//
+//            pages = () Utilities.readByteArray(inStream);
+//
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+    }
 
-	@Override
-	public synchronized void handleTransaction(long id, boolean consensus,
-			Instant timeCreated, byte[] transaction, Address address) {
-		strings.add(new String(transaction, StandardCharsets.UTF_8));
-	}
+    @Override
+    public synchronized void copyFrom(SwirldState old) {
+        pages = Collections.synchronizedList(
+                new ArrayList<>(((FileSystemState) old).pages));
+        addressBook = ((FileSystemState) old).addressBook.copy();
+    }
 
-	@Override
-	public void noMoreTransactions() {
-	}
+    @Override
+    public synchronized void handleTransaction(long id, boolean consensus,
+                                               Instant timeCreated, byte[] transaction, Address address) {
+        try {
+            pages.add((FileSystemPage) FileSystemPage.Deserialize(transaction));
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
 
-	@Override
-	public synchronized void init(Platform platform, AddressBook addressBook) {
-		this.addressBook = addressBook;
-	}
+    @Override
+    public void noMoreTransactions() {
+    }
+
+    @Override
+    public synchronized void init(Platform platform, AddressBook addressBook) {
+        this.addressBook = addressBook;
+    }
 }

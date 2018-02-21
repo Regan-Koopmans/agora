@@ -1,4 +1,6 @@
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 
 import com.swirlds.platform.Browser;
 import com.swirlds.platform.Console;
@@ -21,14 +23,8 @@ public class FileSystemMain implements SwirldMain {
 	/** sleep this many milliseconds after each sync */
 	public final int sleepPeriod = 100;
 
-	/**
-	 * This is just for debugging: it allows the app to run in Eclipse. If the config.txt exists and lists a
-	 * particular SwirldMain class as the one to run, then it can run in Eclipse (with the green triangle
-	 * icon).
-	 * 
-	 * @param args
-	 *            these are not used
-	 */
+	public ArrayList<FileSystemPage> pages = new ArrayList<>();
+
 	public static void main(String[] args) {
 		Browser.main(null);
 	}
@@ -52,9 +48,17 @@ public class FileSystemMain implements SwirldMain {
 		String myName = platform.getState().getAddressBookCopy()
 				.getAddress(selfId).getSelfName();
 
-		// create a transaction. For this example app,
+		byte[] transaction = new byte[0];
 
-		byte[] transaction = myName.getBytes(StandardCharsets.UTF_8);
+		String file = "";
+		file = "Hello from " + myName;
+
+		try {
+			transaction = FileSystemPage.Serialize(new FileSystemPage(myName, this.selfId, file.getBytes()));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
 
 		// Send the transaction to the Platform, which will then
 		// forward it to the State object.
