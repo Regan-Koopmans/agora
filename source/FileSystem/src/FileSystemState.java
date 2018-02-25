@@ -3,7 +3,10 @@
 import com.swirlds.platform.*;
 import org.apache.commons.lang3.SerializationUtils;
 
+import javax.rmi.CORBA.Util;
+import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,7 +45,15 @@ public class FileSystemState implements SwirldState {
      */
     synchronized String getReceived() {
 
-        return pages.toString();
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("FILE SYSTEM STATE\n");
+
+        for (FileSystemPage page: getPages()) {
+            sb.append("- " + page.getFileName() + "\n");
+        }
+
+        return sb.toString();
     }
 
     /**
@@ -76,15 +87,22 @@ public class FileSystemState implements SwirldState {
 
     @Override
     public void copyFrom(FCDataInputStream inStream) {
-//        try {
-//            pages = new ArrayList<FileSystemPage>(
-//                    Arrays.asList(Utilities.readStringArray(inStream)));
-//
-//            pages = () Utilities.readByteArray(inStream);
-//
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
+        try {
+
+            pages = new ArrayList<>();
+            ObjectInputStream buffered = new ObjectInputStream(inStream);
+
+            FileSystemPage page;
+
+            for (page = (FileSystemPage) buffered.readObject(); page != null;) {
+                pages.add(page);
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override

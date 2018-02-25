@@ -11,6 +11,7 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
+      <module name="Distributed" target="1.5" />
       <module name="ExampleApp" target="1.8" />
       <module name="FileSystem" target="1.8" />
       <module name="FileSystem (1)" target="1.5" />

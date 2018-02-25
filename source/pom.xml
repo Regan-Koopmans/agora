@@ -5,8 +5,8 @@
   </properties>
 
   <modelVersion>4.0.0</modelVersion>
-  <groupId>SwirldsDemos</groupId>
-  <artifactId>SwirldsDemos</artifactId>
+  <groupId>Distributed</groupId>
+  <artifactId>Distributed</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <packaging>pom</packaging>
 
