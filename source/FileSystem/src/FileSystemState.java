@@ -3,15 +3,11 @@
 import com.swirlds.platform.*;
 import org.apache.commons.lang3.SerializationUtils;
 
-import javax.rmi.CORBA.Util;
-import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * This holds the current state of the swirld. For this simple "hello swirld" code, each transaction is just
@@ -24,8 +20,8 @@ public class FileSystemState implements SwirldState {
      * The shared state is just a list of the strings in all transactions, listed in the order received
      * here, which will eventually be the consensus order of the community.
      */
-    private List<FileSystemPage> pages = Collections
-            .synchronizedList(new ArrayList<FileSystemPage>());
+    private List<FileSystemEvent> events = Collections
+            .synchronizedList(new ArrayList<FileSystemEvent>());
 
 
     /**
@@ -36,8 +32,8 @@ public class FileSystemState implements SwirldState {
     /**
      * @return all the pages received so far from the network
      */
-    public synchronized List<FileSystemPage> getPages() {
-        return pages;
+    public synchronized List<FileSystemEvent> getEvents() {
+        return events;
     }
 
     /**
@@ -47,10 +43,17 @@ public class FileSystemState implements SwirldState {
 
         StringBuilder sb = new StringBuilder();
 
-        sb.append("FILE SYSTEM STATE\n");
+        sb.append("FILE SYSTEM HISTORY\n");
 
-        for (FileSystemPage page: getPages()) {
-            sb.append("- " + page.getFileName() + "\n");
+        Integer timestamp = 1;
+        for (FileSystemEvent event : getEvents()) {
+            sb.append(timestamp)
+                    .append(" - ")
+                    .append(event.getType().toString())
+                    .append(" : ")
+                    .append(event.getFileName())
+                    .append("\n");
+            timestamp += 1;
         }
 
         return sb.toString();
@@ -60,7 +63,7 @@ public class FileSystemState implements SwirldState {
      * @return the same as getReceived, so it returns the entire shared state as a single string
      */
     public String toString() {
-        return pages.toString();
+        return events.toString();
     }
 
     @Override
@@ -79,7 +82,7 @@ public class FileSystemState implements SwirldState {
     public void copyTo(FCDataOutputStream outStream) {
         try {
             Utilities.writeByteArray(outStream,
-                    SerializationUtils.serialize(pages.toArray()));
+                    SerializationUtils.serialize(events.toArray()));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -89,26 +92,24 @@ public class FileSystemState implements SwirldState {
     public void copyFrom(FCDataInputStream inStream) {
         try {
 
-            pages = new ArrayList<>();
+            events = new ArrayList<>();
             ObjectInputStream buffered = new ObjectInputStream(inStream);
 
-            FileSystemPage page;
+            FileSystemEvent event;
 
-            for (page = (FileSystemPage) buffered.readObject(); page != null;) {
-                pages.add(page);
+            for (event = (FileSystemEvent) buffered.readObject(); event != null; ) {
+                events.add(event);
             }
 
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
+        } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
     }
 
     @Override
     public synchronized void copyFrom(SwirldState old) {
-        pages = Collections.synchronizedList(
-                new ArrayList<>(((FileSystemState) old).pages));
+        events = Collections.synchronizedList(
+                new ArrayList<>(((FileSystemState) old).events));
         addressBook = ((FileSystemState) old).addressBook.copy();
     }
 
@@ -116,7 +117,7 @@ public class FileSystemState implements SwirldState {
     public synchronized void handleTransaction(long id, boolean consensus,
                                                Instant timeCreated, byte[] transaction, Address address) {
         try {
-            pages.add((FileSystemPage) FileSystemPage.Deserialize(transaction));
+            events.add((FileSystemEvent) FileSystemEvent.Deserialize(transaction));
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
@@ -129,5 +130,32 @@ public class FileSystemState implements SwirldState {
     @Override
     public synchronized void init(Platform platform, AddressBook addressBook) {
         this.addressBook = addressBook;
+    }
+
+    List<FileSystemPage> getFileSystem() {
+
+        // We obtain a map, which maps file names to their ordered events.
+        Map<String, List<FileSystemEvent>> fileEvents =
+                events.stream().collect(Collectors.groupingBy(x -> x.fileName));
+
+        List<FileSystemPage> files = new ArrayList<>();
+
+        // We use this map to construct a current state of the filesystem by file.
+        for (Map.Entry<String, List<FileSystemEvent>> pair : fileEvents.entrySet()) {
+            List<FileSystemEvent> events = pair.getValue();
+
+            FileSystemEvent lastEvent = events.get(events.size() - 1);
+
+            // If the last event was not a delete, then file currently exists in the system.
+            if (lastEvent.getType() != FileSystemEventType.DELETE) {
+                files.add(new FileSystemPage(
+                        lastEvent.getFileName(),
+                        1,
+                        events.get(events.size() -1).getData())
+                );
+            }
+        }
+
+        return files;
     }
 }

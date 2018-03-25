@@ -28,7 +28,6 @@ public class FileSystemMain implements SwirldMain {
         Browser.main(null);
     }
 
-
     @Override
     public void preEvent() {
     }
@@ -43,19 +42,46 @@ public class FileSystemMain implements SwirldMain {
         this.published = new ArrayList<>();
     }
 
-    public ArrayList<Path> directoryScan() throws IOException {
+    private ArrayList<Path> directoryScan() throws IOException {
 
         ArrayList<Path> scannedFiles = new ArrayList<>();
         Files.walk(Paths.get("files/" + this.threadName))
                 .filter(Files::isRegularFile)
-                .forEach(x -> scannedFiles.add(x));
+                .forEach(scannedFiles::add);
 
         return scannedFiles;
     }
 
-    private void addFileToNetwork(Path path) throws IOException {
+    private void updateFileInNetwork(Path path) throws IOException {
+        byte[] transaction = FileSystemEvent.Serialize(new FileSystemEvent(
+                FileSystemEventType.MODIFY,
+                path.toString(),
+                1,
+                Files.readAllBytes(path),
+                this.threadName));
+        platform.createTransaction(transaction, null);
+    }
 
-        byte [] transaction = FileSystemPage.Serialize(new FileSystemPage(path.toString(), selfId, Files.readAllBytes(path)));
+    // Event handler for delete file
+    private void removeFileFromNetwork(Path path) throws IOException {
+        byte[] transaction = FileSystemEvent.Serialize(new FileSystemEvent(
+                FileSystemEventType.DELETE,
+                path.toString(),
+                1,
+                null,
+                this.threadName));
+        platform.createTransaction(transaction, null);
+    }
+
+
+    // Event handler for new file
+    private void addFileToNetwork(Path path) throws IOException {
+        byte[] transaction = FileSystemEvent.Serialize(new FileSystemEvent(
+                FileSystemEventType.CREATE,
+                path.toString(),
+                1,
+                Files.readAllBytes(path),
+                this.threadName));
         platform.createTransaction(transaction, null);
     }
 
@@ -93,19 +119,14 @@ public class FileSystemMain implements SwirldMain {
 
             if (!lastReceived.equals(received)) {
                 lastReceived = received;
-                for (FileSystemPage page : state.getPages()) {
+                for (FileSystemEvent event : state.getEvents()) {
                     console.out.println(received);
                 }
-            }
 
-
-            // Scan directory for changes.
-            try {
-                unpublished = directoryScan();
-            } catch (IOException e) {
-                e.printStackTrace();
+                for (FileSystemPage page: state.getFileSystem()) {
+                    console.out.println(page);
+                }
             }
-            unpublished.removeAll(published);
 
 
             try {
@@ -132,37 +153,33 @@ public class FileSystemMain implements SwirldMain {
                     }
                     if (event.kind() == StandardWatchEventKinds.ENTRY_DELETE) {
                         console.out.println("Delete: " + event.context().toString());
+
+                        Path path = Paths.get("files/" + this.threadName + "/" + event.context().toString());
+
+                        if (!Files.isDirectory(path)) {
+                            try {
+                                removeFileFromNetwork(path);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
                     }
                     if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
                         console.out.println("Modify: " + event.context().toString());
+
+                        Path path = Paths.get("files/" + this.threadName + "/" + event.context().toString());
+
+                        if (!Files.isDirectory(path)) {
+                            try {
+                                updateFileInNetwork(path);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
                     }
                 }
                 watchKey.reset();
             }
-
-
-            // Try to publish all new files.
-
-//            try {
-//
-//                for (Path path : unpublished) {
-//
-//                    console.out.println("Found file: " + path.toString());
-//
-//                    // Given this unpublished path, create a new transaction
-//
-//
-//                    // Place this transaction on the network
-//                    platform.createTransaction(transaction, null);
-//
-//                    // This path has now been published to the network.
-//                    published.add(path);
-//
-//                }
-//
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
 
             try {
                 Thread.sleep(sleepPeriod);

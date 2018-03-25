@@ -1,3 +1,5 @@
 FileSystemMain.class
 FileSystemPage.class
 FileSystemState.class
+FileSystemEventType.class
+FileSystemEvent.class
