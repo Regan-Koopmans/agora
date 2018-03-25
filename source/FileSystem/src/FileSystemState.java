@@ -1,12 +1,9 @@
-
-
 import com.swirlds.platform.*;
 import org.apache.commons.lang3.SerializationUtils;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.time.Instant;
-import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -23,10 +20,6 @@ public class FileSystemState implements SwirldState {
     private List<FileSystemEvent> events = Collections
             .synchronizedList(new ArrayList<FileSystemEvent>());
 
-
-    /**
-     * names and addresses of all members
-     */
     private AddressBook addressBook;
 
     /**
@@ -55,7 +48,6 @@ public class FileSystemState implements SwirldState {
                     .append("\n");
             timestamp += 1;
         }
-
         return sb.toString();
     }
 
@@ -108,8 +100,7 @@ public class FileSystemState implements SwirldState {
 
     @Override
     public synchronized void copyFrom(SwirldState old) {
-        events = Collections.synchronizedList(
-                new ArrayList<>(((FileSystemState) old).events));
+        events = Collections.synchronizedList(new ArrayList<>(((FileSystemState) old).events));
         addressBook = ((FileSystemState) old).addressBook.copy();
     }
 
@@ -151,11 +142,10 @@ public class FileSystemState implements SwirldState {
                 files.add(new FileSystemPage(
                         lastEvent.getFileName(),
                         1,
-                        events.get(events.size() -1).getData())
+                        events.get(events.size() - 1).getData())
                 );
             }
         }
-
         return files;
     }
 }
