@@ -10,11 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * This holds the current state of the swirld. For this simple "hello swirld" code, each transaction is just
- * a string, and the state is just a list of the strings in all the transactions handled so far, in the
- * order that they were handled.
- */
 public class FileSystemState implements SwirldState {
 
     /**

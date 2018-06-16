@@ -1,21 +1,25 @@
 import com.swirlds.platform.*;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class FileSystemMain implements SwirldMain {
 
-    private final int sleepPeriod = 1000;
+    private final int sleepPeriod = 500;
     public ArrayList<FileSystemPage> pages = new ArrayList<>();
     private Platform platform;
     private int selfId;
     private Console console;
     private String threadName;
     private ArrayList<Path> published;
+
+    ReentrantLock eventLock = new ReentrantLock();
 
     public static void main(String[] args) {
         Browser.main(null);
@@ -29,7 +33,7 @@ public class FileSystemMain implements SwirldMain {
     public void init(Platform platform, int id) {
         this.platform = platform;
         this.selfId = id;
-        this.console = platform.createConsole(true); // create the window, make it visible
+        //this.console = platform.createConsole(false); // create the window, make it visible
         platform.setAbout("File System \n"); // set the browser's "about" box
         platform.setSleepAfterSync(sleepPeriod);
         this.published = new ArrayList<>();
@@ -45,7 +49,7 @@ public class FileSystemMain implements SwirldMain {
     private void updateFileInNetwork(Path path) throws IOException {
         byte[] transaction = FileSystemEvent.Serialize(new FileSystemEvent(
                 FileSystemEventType.MODIFY,
-                path.toString(),
+                path.toString().replace("files\\" + this.threadName + "\\", ""),
                 1,
                 Files.readAllBytes(path),
                 this.threadName));
@@ -56,7 +60,7 @@ public class FileSystemMain implements SwirldMain {
     private void removeFileFromNetwork(Path path) throws IOException {
         byte[] transaction = FileSystemEvent.Serialize(new FileSystemEvent(
                 FileSystemEventType.DELETE,
-                path.toString(),
+                path.toString().replace("files\\" + this.threadName + "\\", ""),
                 1,
                 null,
                 this.threadName));
@@ -68,7 +72,7 @@ public class FileSystemMain implements SwirldMain {
     private void addFileToNetwork(Path path) throws IOException {
         byte[] transaction = FileSystemEvent.Serialize(new FileSystemEvent(
                 FileSystemEventType.CREATE,
-                path.toString(),
+                path.toString().replace("files\\" + this.threadName + "\\", ""),
                 1,
                 Files.readAllBytes(path),
                 this.threadName));
@@ -106,18 +110,44 @@ public class FileSystemMain implements SwirldMain {
 
             if (!lastReceived.equals(received)) {
                 lastReceived = received;
-                for (FileSystemEvent event : state.getEvents()) {
-                    console.out.println(received);
+
+                eventLock.lock();
+                try {
+                    watcher.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
 
-                for (FileSystemPage page : state.getFileSystem()) {
-                    File file = new File(page.getFileName());
-                    try {
-                        file.createNewFile();
-                    } catch (IOException e) {
-                        e.printStackTrace();
+                for (FileSystemEvent event : state.getEvents()) {
+                    File file = new File("files/" + this.threadName + "/" + event.fileName);
+
+                    if (event.getType().equals(FileSystemEventType.CREATE) ||
+                            event.getType().equals(FileSystemEventType.MODIFY)) {
+
+                        try {
+
+                            file.createNewFile();
+                            FileWriter writer = new FileWriter(file);
+                            writer.write(new String(event.getData()));
+                            writer.close();
+                        } catch (IOException e) {
+                            System.out.println(e);
+                        }
+                    } else {
+                        file.delete();
                     }
                 }
+
+                try {
+                    watcher = localDirectory.getFileSystem().newWatchService();
+                    localDirectory.register(watcher, StandardWatchEventKinds.ENTRY_CREATE,
+                            StandardWatchEventKinds.ENTRY_DELETE, StandardWatchEventKinds.ENTRY_MODIFY);
+
+                } catch (Exception e) {
+
+                }
+
+                eventLock.unlock();
             }
 
             try {
@@ -130,7 +160,6 @@ public class FileSystemMain implements SwirldMain {
                 List<WatchEvent<?>> events = watchKey.pollEvents();
                 for (WatchEvent event : events) {
                     if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE) {
-                        console.out.println("Created: " + event.context().toString());
                         Path path = Paths.get("files/" + this.threadName + "/" + event.context().toString());
                         if (!Files.isDirectory(path)) {
                             try {
@@ -141,7 +170,6 @@ public class FileSystemMain implements SwirldMain {
                         }
                     }
                     if (event.kind() == StandardWatchEventKinds.ENTRY_DELETE) {
-                        console.out.println("Delete: " + event.context().toString());
                         Path path = Paths.get("files/" + this.threadName + "/" + event.context().toString());
                         if (!Files.isDirectory(path)) {
                             try {
@@ -152,7 +180,6 @@ public class FileSystemMain implements SwirldMain {
                         }
                     }
                     if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
-                        console.out.println("Modify: " + event.context().toString());
                         Path path = Paths.get("files/" + this.threadName + "/" + event.context().toString());
                         if (!Files.isDirectory(path)) {
                             try {
