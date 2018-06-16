@@ -1,3 +1,5 @@
+import java.io.*;
+
 public class FileSystemEvent implements Serializable {
 
     public String fileName;
@@ -6,8 +8,7 @@ public class FileSystemEvent implements Serializable {
     private byte[] data;
     private String author;
 
-    public FileSystemEvent() {
-    }
+    public FileSystemEvent() {}
 
     public FileSystemEvent(FileSystemEventType type, String fileName, int pageNumber, byte[] data, String author) {
         this.type = type;
@@ -23,7 +24,6 @@ public class FileSystemEvent implements Serializable {
         os.writeObject(obj);
         return out.toByteArray();
     }
-
     static Object Deserialize(byte[] data) throws IOException, ClassNotFoundException {
         ByteArrayInputStream in = new ByteArrayInputStream(data);
         ObjectInputStream is = new ObjectInputStream(in);
@@ -33,20 +33,14 @@ public class FileSystemEvent implements Serializable {
     String getFileName() {
         return this.fileName;
     }
-
     public int getPageNumber() {
         return this.pageNumber;
     }
-
-    FileSystemEventType getType() {
-        return this.type;
-    }
-
-    byte[] getData() {
-        return this.data;
-    }
+    FileSystemEventType getType() { return this.type; }
+    byte[] getData() { return this.data; }
 
     public String toString() {
         return this.type.toString() + " : " + fileName;
     }
+
 }

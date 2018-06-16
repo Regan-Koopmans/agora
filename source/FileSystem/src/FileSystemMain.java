@@ -1,6 +1,8 @@
 import com.swirlds.platform.*;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -109,7 +111,12 @@ public class FileSystemMain implements SwirldMain {
                 }
 
                 for (FileSystemPage page : state.getFileSystem()) {
-                    console.out.println(page);
+                    File file = new File(page.getFileName());
+                    try {
+                        file.createNewFile();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
 
